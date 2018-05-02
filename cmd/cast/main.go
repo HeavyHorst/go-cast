@@ -2,10 +2,13 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -66,7 +69,7 @@ func main() {
 				{
 					Name:      "play",
 					Usage:     "play some media",
-					ArgsUsage: "play url [content type]",
+					ArgsUsage: "play urls",
 					Action:    cliCommand,
 				},
 				{
@@ -289,7 +292,7 @@ var minArgs = map[string]int{
 }
 
 var maxArgs = map[string]int{
-	"play":   2,
+	"play":   -1,
 	"pause":  0,
 	"stop":   0,
 	"quit":   0,
@@ -305,7 +308,7 @@ func checkCommand(cmd string, args []string) bool {
 		fmt.Printf("Command '%s' requires at least %d argument(s)\n", cmd, minArgs[cmd])
 		return false
 	}
-	if len(args) > maxArgs[cmd] {
+	if len(args) > maxArgs[cmd] && maxArgs[cmd] > 0 {
 		fmt.Printf("Command '%s' takes at most %d argument(s)\n", cmd, maxArgs[cmd])
 		return false
 	}
@@ -336,23 +339,84 @@ func validateFloat(val string, min, max float64) error {
 	return nil
 }
 
+func getURL(ctx context.Context, f string, castIP net.IP) string {
+	if strings.HasPrefix(f, "http://") || strings.HasPrefix(f, "https://") {
+		return f
+	}
+
+	addrChan := make(chan net.Addr)
+
+	go func() {
+		listener, err := net.Listen("tcp", ":0")
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		addrChan <- listener.Addr()
+
+		mux := http.NewServeMux()
+		mux.Handle("/", http.FileServer(http.Dir(filepath.Dir(f))))
+
+		srv := &http.Server{Handler: mux}
+
+		go func() {
+			<-ctx.Done()
+			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+			defer cancel() // releases resources if slowOperation completes before timeout elapses
+			srv.Shutdown(ctx)
+		}()
+
+		srv.Serve(listener)
+	}()
+
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	var ip string
+	for _, addr := range addrs {
+		i, _, _ := net.ParseCIDR(addr.String())
+		if bytes.Equal(i.Mask(net.IPv4Mask(255, 255, 255, 0)), castIP.Mask(net.IPv4Mask(255, 255, 255, 0))) {
+			ip = i.String()
+		}
+	}
+
+	port := (<-addrChan).(*net.TCPAddr).Port
+	return fmt.Sprintf("http://%s:%d/%s", ip, port, f)
+}
+
 func runCommand(ctx context.Context, client *cast.Client, cmd string, args []string) {
 	switch cmd {
 	case "play":
 		media, err := client.Media(ctx)
 		checkErr(err)
-		url := args[0]
-		contentType := "audio/mpeg"
-		if len(args) > 1 {
-			contentType = args[1]
+
+		for _, u := range args {
+			ctx, cancel := context.WithCancel(context.Background())
+			url := getURL(ctx, u, client.IP())
+			fmt.Println(url)
+			contentType := "audio/mpeg"
+			if len(args) > 1 {
+				contentType = args[1]
+			}
+			item := controllers.MediaItem{
+				ContentId:   url,
+				StreamType:  "BUFFERED",
+				ContentType: contentType,
+			}
+			_, err = media.LoadMedia(ctx, item, 0, true, map[string]interface{}{})
+
+			for {
+				if !client.IsPlaying(context.Background()) {
+					cancel()
+					break
+				}
+				time.Sleep(1 * time.Second)
+			}
+
+			checkErr(err)
 		}
-		item := controllers.MediaItem{
-			ContentId:   url,
-			StreamType:  "BUFFERED",
-			ContentType: contentType,
-		}
-		_, err = media.LoadMedia(ctx, item, 0, true, map[string]interface{}{})
-		checkErr(err)
 
 	case "pause":
 		media, err := client.Media(ctx)
