@@ -1,17 +1,16 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
-	"golang.org/x/net/context"
-
-	"github.com/barnybug/go-cast/api"
-	"github.com/barnybug/go-cast/events"
-	"github.com/barnybug/go-cast/log"
-	"github.com/barnybug/go-cast/net"
+	"github.com/HeavyHorst/go-cast/api"
+	"github.com/HeavyHorst/go-cast/events"
+	"github.com/HeavyHorst/go-cast/log"
+	"github.com/HeavyHorst/go-cast/net"
 )
 
 type MediaController struct {

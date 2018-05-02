@@ -1,12 +1,11 @@
 package net
 
 import (
+	"context"
 	"sync/atomic"
 
-	"golang.org/x/net/context"
-
-	"github.com/barnybug/go-cast/api"
-	"github.com/barnybug/go-cast/log"
+	"github.com/HeavyHorst/go-cast/api"
+	"github.com/HeavyHorst/go-cast/log"
 )
 
 type Channel struct {
@@ -14,7 +13,7 @@ type Channel struct {
 	sourceId      string
 	DestinationId string
 	namespace     string
-	_ int32 
+	_             int32
 	requestId     int64
 	inFlight      map[int]chan *api.CastMessage
 	listeners     []channelListener

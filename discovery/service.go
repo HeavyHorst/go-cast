@@ -2,65 +2,60 @@
 package discovery
 
 import (
-	"regexp"
-	"strconv"
+	"context"
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
-
-	"github.com/barnybug/go-cast"
-	"github.com/barnybug/go-cast/log"
-	"github.com/hashicorp/mdns"
+	"github.com/HeavyHorst/go-cast"
+	"github.com/HeavyHorst/go-cast/log"
+	"github.com/grandcat/zeroconf"
 )
 
 type Service struct {
 	found     chan *cast.Client
-	entriesCh chan *mdns.ServiceEntry
-
-	stopPeriodic chan struct{}
+	entriesCh chan *zeroconf.ServiceEntry
 }
 
 func NewService(ctx context.Context) *Service {
 	s := &Service{
 		found:     make(chan *cast.Client),
-		entriesCh: make(chan *mdns.ServiceEntry, 10),
+		entriesCh: make(chan *zeroconf.ServiceEntry, 10),
 	}
 
 	go s.listener(ctx)
 	return s
 }
 
+func wrapChan(c chan *zeroconf.ServiceEntry) chan *zeroconf.ServiceEntry {
+	entries := make(chan *zeroconf.ServiceEntry)
+	go func() {
+		for entry := range entries {
+			c <- entry
+		}
+	}()
+	return entries
+}
+
 func (d *Service) Run(ctx context.Context, interval time.Duration) error {
-	mdns.Query(&mdns.QueryParam{
-		Service: "_googlecast._tcp",
-		Domain:  "local",
-		Timeout: interval,
-		Entries: d.entriesCh,
-	})
+	resolver, err := zeroconf.NewResolver(nil)
+	if err != nil {
+		log.Fatalln("Failed to initialize resolver:", err.Error())
+		return err
+	}
+
+	err = resolver.Browse(ctx, "_googlecast._tcp", "local", wrapChan(d.entriesCh))
+	if err != nil {
+		log.Fatalln("Failed to browse:", err.Error())
+	}
 
 	ticker := time.NewTicker(interval)
 	for {
 		select {
 		case <-ticker.C:
-			mdns.Query(&mdns.QueryParam{
-				Service: "_googlecast._tcp",
-				Domain:  "local",
-				Timeout: time.Second * 3,
-				Entries: d.entriesCh,
-			})
+			resolver.Browse(ctx, "_googlecast._tcp", "local", wrapChan(d.entriesCh))
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-	}
-
-	return nil
-}
-
-func (d *Service) Stop() {
-	if d.stopPeriodic != nil {
-		close(d.stopPeriodic)
-		d.stopPeriodic = nil
 	}
 }
 
@@ -70,15 +65,10 @@ func (d *Service) Found() chan *cast.Client {
 
 func (d *Service) listener(ctx context.Context) {
 	for entry := range d.entriesCh {
-		name := strings.Split(entry.Name, "._googlecast")
-		// Skip everything that doesn't have googlecast in the fdqn
-		if len(name) < 2 {
-			continue
-		}
-
 		log.Printf("New entry: %#v\n", entry)
-		client := cast.NewClient(entry.AddrV4, entry.Port)
-		info := decodeTxtRecord(entry.Info)
+		client := cast.NewClient(entry.AddrIPv4[0], entry.Port)
+
+		info := decodeTxtRecord(strings.Join(entry.Text, "|"))
 		client.SetName(info["fn"])
 		client.SetInfo(info)
 
@@ -89,23 +79,6 @@ func (d *Service) listener(ctx context.Context) {
 			break
 		}
 	}
-}
-
-func decodeDnsEntry(text string) string {
-	text = strings.Replace(text, `\.`, ".", -1)
-	text = strings.Replace(text, `\ `, " ", -1)
-
-	re := regexp.MustCompile(`([\\][0-9][0-9][0-9])`)
-	text = re.ReplaceAllStringFunc(text, func(source string) string {
-		i, err := strconv.Atoi(source[1:])
-		if err != nil {
-			return ""
-		}
-
-		return string([]byte{byte(i)})
-	})
-
-	return text
 }
 
 func decodeTxtRecord(txt string) map[string]string {

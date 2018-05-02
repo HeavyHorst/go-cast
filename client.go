@@ -1,16 +1,15 @@
 package cast
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 
-	"golang.org/x/net/context"
-
-	"github.com/barnybug/go-cast/controllers"
-	"github.com/barnybug/go-cast/events"
-	"github.com/barnybug/go-cast/log"
-	castnet "github.com/barnybug/go-cast/net"
+	"github.com/HeavyHorst/go-cast/controllers"
+	"github.com/HeavyHorst/go-cast/events"
+	"github.com/HeavyHorst/go-cast/log"
+	castnet "github.com/HeavyHorst/go-cast/net"
 )
 
 type Client struct {

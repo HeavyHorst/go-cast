@@ -1,9 +1,10 @@
 package controllers
 
 import (
-	"github.com/barnybug/go-cast/events"
-	"github.com/barnybug/go-cast/net"
-	"golang.org/x/net/context"
+	"context"
+
+	"github.com/HeavyHorst/go-cast/events"
+	"github.com/HeavyHorst/go-cast/net"
 )
 
 type ConnectionController struct {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -9,13 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
-
-	"github.com/barnybug/go-cast"
-	"github.com/barnybug/go-cast/controllers"
-	"github.com/barnybug/go-cast/discovery"
-	"github.com/barnybug/go-cast/events"
-	"github.com/barnybug/go-cast/log"
+	"github.com/HeavyHorst/go-cast"
+	"github.com/HeavyHorst/go-cast/controllers"
+	"github.com/HeavyHorst/go-cast/discovery"
+	"github.com/HeavyHorst/go-cast/events"
+	"github.com/HeavyHorst/go-cast/log"
 	"github.com/urfave/cli"
 )
 

@@ -1,6 +1,7 @@
 package net
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/json"
@@ -8,10 +9,8 @@ import (
 	"io"
 	"net"
 
-	"golang.org/x/net/context"
-
-	"github.com/barnybug/go-cast/api"
-	"github.com/barnybug/go-cast/log"
+	"github.com/HeavyHorst/go-cast/api"
+	"github.com/HeavyHorst/go-cast/log"
 	"github.com/gogo/protobuf/proto"
 )
 
