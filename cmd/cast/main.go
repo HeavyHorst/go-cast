@@ -8,12 +8,11 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/HeavyHorst/go-cast"
+	cast "github.com/HeavyHorst/go-cast"
 	"github.com/HeavyHorst/go-cast/controllers"
 	"github.com/HeavyHorst/go-cast/discovery"
 	"github.com/HeavyHorst/go-cast/events"
@@ -355,7 +354,9 @@ func getURL(ctx context.Context, f string, castIP net.IP) string {
 		addrChan <- listener.Addr()
 
 		mux := http.NewServeMux()
-		mux.Handle("/", http.FileServer(http.Dir(filepath.Dir(f))))
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, f)
+		})
 
 		srv := &http.Server{Handler: mux}
 
@@ -383,7 +384,7 @@ func getURL(ctx context.Context, f string, castIP net.IP) string {
 	}
 
 	port := (<-addrChan).(*net.TCPAddr).Port
-	return fmt.Sprintf("http://%s:%d/%s", ip, port, f)
+	return fmt.Sprintf("http://%s:%d", ip, port)
 }
 
 func runCommand(ctx context.Context, client *cast.Client, cmd string, args []string) {
@@ -395,24 +396,29 @@ func runCommand(ctx context.Context, client *cast.Client, cmd string, args []str
 		for _, u := range args {
 			ctx, cancel := context.WithCancel(context.Background())
 			url := getURL(ctx, u, client.IP())
-			fmt.Println(url)
-			contentType := "audio/mpeg"
-			if len(args) > 1 {
-				contentType = args[1]
-			}
+
 			item := controllers.MediaItem{
-				ContentId:   url,
-				StreamType:  "BUFFERED",
-				ContentType: contentType,
+				ContentId:  url,
+				StreamType: "BUFFERED",
 			}
 			_, err = media.LoadMedia(ctx, item, 0, true, map[string]interface{}{})
 
-			for {
-				if !client.IsPlaying(context.Background()) {
-					cancel()
-					break
+			next := make(chan struct{})
+			go func() {
+				for e := range client.Events {
+					switch event := e.(type) {
+					case controllers.MediaStatus:
+						if event.PlayerState == "IDLE" && event.IdleReason == "FINISHED" {
+							next <- struct{}{}
+						}
+					}
 				}
-				time.Sleep(1 * time.Second)
+			}()
+
+			for {
+				<-next
+				cancel()
+				break
 			}
 
 			checkErr(err)

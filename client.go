@@ -159,6 +159,7 @@ func (c *Client) IsPlaying(ctx context.Context) bool {
 	if app == nil {
 		return false
 	}
+
 	if *app.StatusText == "Ready To Cast" {
 		return false
 	}

@@ -1,0 +1,27 @@
+# github.com/cenkalti/backoff v2.1.1+incompatible
+github.com/cenkalti/backoff
+# github.com/davecgh/go-spew v1.1.0
+github.com/davecgh/go-spew/spew
+# github.com/gogo/protobuf v1.2.0
+github.com/gogo/protobuf/proto
+# github.com/grandcat/zeroconf v0.0.0-20190118114326-c2d1b4121200
+github.com/grandcat/zeroconf
+# github.com/miekg/dns v1.1.4
+github.com/miekg/dns
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
+# github.com/stretchr/testify v1.3.0
+github.com/stretchr/testify/assert
+# github.com/urfave/cli v1.20.0
+github.com/urfave/cli
+# golang.org/x/crypto v0.0.0-20190131182504-b8fe1690c613
+golang.org/x/crypto/ed25519
+golang.org/x/crypto/ed25519/internal/edwards25519
+# golang.org/x/net v0.0.0-20190125091013-d26f9f9a57f3
+golang.org/x/net/ipv4
+golang.org/x/net/ipv6
+golang.org/x/net/bpf
+golang.org/x/net/internal/iana
+golang.org/x/net/internal/socket
+# golang.org/x/sys v0.0.0-20190203050204-7ae0202eb74c
+golang.org/x/sys/unix
